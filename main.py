@@ -24,13 +24,15 @@ class User:
 
 class QueueSystem:
     
-    def __init__(self, config: Dict[str, int], env: simpy.core.Environment, service: simpy.resources.resource.Resource) -> None:
+    def __init__(self, config: Dict[str, int], env: simpy.core.Environment, service: simpy.resources.resource.Resource, bandwidth) -> None:
         self.time = config['time']
-        self.avg_session_time = config['avg_session_time']
         self.avg_arrival_time = config['avg_arrival_time']
-
+        self.mean_file_size = config['mean_file_size']
+        self.mean_download_speed = config['mean_download_speed']
+        
         self.env = env
         self.service = service
+        self.bandwidth = bandwidth
 
     class User:
 
@@ -60,12 +62,19 @@ class QueueSystem:
 
     def user_process(self, user: User):
         user.enter(self.env.now)
+        
+        file_size = np.random.exponential(1 / self.mean_file_size)
+        download_time = file_size * 8 / self.mean_download_speed
+        
+        yield self.bandwidth.get(self.mean_download_speed)
         with self.service.request() as request:
             yield request
             user.process(self.env.now)
-            session_time = np.random.exponential(self.avg_session_time)
-            yield self.env.timeout(session_time)
+            
+            yield self.env.timeout(download_time)
             user.out(self.env.now)
+        
+        yield self.bandwidth.put(self.mean_download_speed)
 
     def gen_users(self):
         while True:
@@ -82,8 +91,9 @@ def main():
     
     env = simpy.Environment()
     service = simpy.Resource(env, capacity=config['number_of_servers'])
+    bandwidth = simpy.Container(env, capacity=config['bandwidth'], init=config['bandwidth'])
     
-    system = QueueSystem(config, env, service)
+    system = QueueSystem(config, env, service, bandwidth)
 
     system.run()
 

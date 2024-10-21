@@ -1,5 +1,7 @@
 number_of_servers: 20
+bandwidth: 100 # MB/s
+mean_file_size: 200 # MB
+mean_download_speed: 5 # MB/s
 # time related parameters in minutes
 time: 1440
-avg_session_time: 90
-avg_arrival_time: 5
+avg_arrival_time: 2
