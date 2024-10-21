@@ -1,0 +1,6 @@
+number_of_servers: 2
+time: 20
+time_of_usage_min: 10
+time_of_usage_max: 14
+interval_min: 1
+interval_max: 3

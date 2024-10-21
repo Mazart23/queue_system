@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  queue_simulation:
+    build: .
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    command: python main.py
