@@ -1,6 +1,5 @@
-number_of_servers: 2
-time: 20
-time_of_usage_min: 10
-time_of_usage_max: 14
-interval_min: 1
-interval_max: 3
+number_of_servers: 20
+# time related parameters in minutes
+time: 1440
+avg_session_time: 90
+avg_arrival_time: 5

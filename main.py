@@ -1,8 +1,8 @@
-import random
 from typing import Dict
 
 import yaml
 import simpy
+import numpy as np
 
 
 def load_file(filename):
@@ -26,8 +26,8 @@ class QueueSystem:
     
     def __init__(self, config: Dict[str, int], env: simpy.core.Environment, service: simpy.resources.resource.Resource) -> None:
         self.time = config['time']
-        self.time_of_usage = (config['time_of_usage_min'], config['time_of_usage_max'])
-        self.interval = (config['interval_min'], config['interval_max'])
+        self.avg_session_time = config['avg_session_time']
+        self.avg_arrival_time = config['avg_arrival_time']
 
         self.env = env
         self.service = service
@@ -63,13 +63,13 @@ class QueueSystem:
         with self.service.request() as request:
             yield request
             user.process(self.env.now)
-            real_time_of_usage = random.uniform(*self.time_of_usage)
-            yield self.env.timeout(real_time_of_usage)
+            session_time = np.random.exponential(self.avg_session_time)
+            yield self.env.timeout(session_time)
             user.out(self.env.now)
 
     def gen_users(self):
         while True:
-            yield self.env.timeout(random.uniform(*self.interval))
+            yield self.env.timeout(np.random.exponential(self.avg_arrival_time))
             self.env.process(self.user_process(self.User()))
 
     def run(self):
