@@ -1,6 +1,7 @@
 number_of_servers: 20
 bandwidth: 100 # MB/s
 mean_file_size: 200 # MB
+segment_size: 2 # MB
 mean_download_speed: 5 # MB/s
 # time related parameters in minutes
 time: 1440

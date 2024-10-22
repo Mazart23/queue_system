@@ -1,4 +1,5 @@
 from typing import Dict
+from queue import Queue
 
 import yaml
 import simpy
@@ -17,7 +18,8 @@ class QueueSystem:
         self.avg_arrival_time = config['avg_arrival_time']
         self.mean_file_size = config['mean_file_size']
         self.mean_download_speed = config['mean_download_speed']
-        
+        self.users = Queue()
+
         self.env = env
         self.service = service
         self.bandwidth = bandwidth
@@ -67,7 +69,9 @@ class QueueSystem:
     def gen_users(self):
         while True:
             yield self.env.timeout(np.random.exponential(self.avg_arrival_time))
-            self.env.process(self.user_process(self.User()))
+            user = self.User()
+            self.users.put(user)
+            self.env.process(self.user_process(user))
 
     def run(self):
         self.env.process(self.gen_users())
@@ -85,6 +89,7 @@ def main():
 
     system.run()
 
+    system.users
 
 if __name__ == '__main__':
     main()
