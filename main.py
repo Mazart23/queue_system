@@ -1,4 +1,5 @@
 from typing import Dict
+
 import yaml
 import simpy
 import numpy as np
@@ -7,33 +8,6 @@ import numpy as np
 def load_file(filename):
     with open(filename, 'r') as file:
         return yaml.safe_load(file)
-
-
-class User:
-
-    counter = 0
-    
-    def __init__(self) -> None:
-        self.__class__.counter += 1
-        self.id = self.__class__.counter
-        self.enter_time = 0
-        self.process_time = 0
-        self.out_time = 0
-
-    def __str__(self):
-        return f'User {self.id}'
-    
-    def enter(self, time) -> None:
-        self.enter_time = time
-        print(f'{self} przychodzi w czasie {self.enter_time}')
-
-    def process(self, time) -> None:
-        self.process_time = time
-        print(f'{self} jest obsługiwany w czasie {self.process_time}')
-
-    def out(self, time) -> None:
-        self.out_time = time
-        print(f'{self} zakończył obsługę w czasie {self.out_time}')
 
 
 class QueueSystem:
@@ -114,4 +88,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
