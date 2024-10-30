@@ -1,7 +1,10 @@
-number_of_servers: 20
-bandwidth: 100 # MB/s
+number_of_servers: 8
 mean_file_size: 200 # MB
-mean_download_speed: 5 # MB/s
-# time related parameters in minutes
-time: 1440
+is_segmented: False
+segment_size: 2 # MB
+segment_watchtime: 60 # s
+mean_download_speed: 10 # MB/s
+sample_frequency: 0.5
+# time related parameters in seconds
+time: 3600
 avg_arrival_time: 2
