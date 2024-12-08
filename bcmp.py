@@ -1,11 +1,19 @@
-from typing import Dict
 from queue import Queue
-import math
 
 import yaml
 import simpy
 import numpy as np
-import matplotlib.pyplot as plt  
+import matplotlib.pyplot as plt
+
+from .components.system import Resource
+from .components.system.IS import IS
+from .components.system.IS_segmented import IS_segmented
+from .components.system.FIFO import FIFO
+from .components.system.FIFO_segmented import FIFO_segmented
+from .components.users import User
+from .components.users.standard import UserStandard
+from .components.users.premium import UserPremium
+from .components.users.vip import UserVIP
 
 
 def load_file(filename):
@@ -13,51 +21,31 @@ def load_file(filename):
         return yaml.safe_load(file)
 
 
-class QueueSystem:
+def create_user(wages):
+    user_types = [
+        UserStandard,
+        UserPremium,
+        UserVIP,
+    ]
+    user = np.random.choice(user_types, 1, p=wages)()
+    return user
+
+
+class Net:
     
-    def __init__(self, is_segmented: bool, config: Dict[str, int]) -> None:
+    def __init__(self, config: dict) -> None:
         self.time = config['time']
-        self.avg_arrival_time = config['avg_arrival_time']
-        self.mean_file_size = config['mean_file_size']
-        self.mean_download_speed = config['mean_download_speed']
-        self.segment_size = config['segment_size']
-        self.segment_watchtime = config['segment_watchtime']
-        self.is_segmented = is_segmented
         self.users = Queue()
-        self.queue_data = []  # Lista do przechowywania danych o długości kolejki
-        self.in_service_data = []  # Lista do przechowywania danych o liczbie obsługiwanych użytkowników
-        self.waiting_times = []  # Lista do przechowywania czasów oczekiwania użytkowników
-        self.service_times = []  # Lista do przechowywania czasów obsługi użytkowników
+        self.in_net = Queue()  # liczba użytkowników w sieci
 
         self.env = simpy.Environment()
+        self.IS_input = IS(self.env, config['IS_input'])
+        self.IS_between_servers = IS(self.env, config['IS_between_servers'])
+        self.FIFO = FIFO(self.env, config['FIFO'])
+        self.FIFO_segmented = FIFO_segmented(self.env, config['IS_between_servers'])
+        self.IS_segmented = IS_segmented(self.env, config['IS_segmented'])
+        self.IS_output = IS(self.env, config['IS_output'])
         self.service = simpy.Resource(self.env, capacity=config['number_of_servers'])
-
-    class User:
-
-        counter = 0
-        
-        def __init__(self) -> None:
-            self.__class__.counter += 1
-            self.id = self.__class__.counter
-            self.enter_time = []
-            self.process_time = []
-            self.out_time = []
-            self.segments = 1
-
-        def __str__(self) -> str:
-            return f'User {self.id}'
-        
-        def enter(self, time, segment_number=0) -> None:
-            self.enter_time.append(time)
-            print(f'{self} przychodzi w czasie {time}, segment {segment_number + 1} / {self.segments}')
-
-        def process(self, time, segment_number=0) -> None:
-            self.process_time.append(time)
-            print(f'{self} jest obsługiwany w czasie {time}, segment {segment_number + 1} / {self.segments}')
-
-        def out(self, time, segment_number=0) -> None:
-            self.out_time.append(time)
-            print(f'{self} zakończył obsługę w czasie {time}, segment {segment_number + 1} / {self.segments}')
 
     def track_queue_length_and_service(self, time):
         queue_length = len(self.service.queue)
@@ -87,7 +75,7 @@ class QueueSystem:
     def user_process_segmented(self, user: User):     
         file_size = abs(np.random.normal(self.mean_file_size))
         
-        full_segments_number = math.floor(file_size / self.segment_size)
+        full_segments_number = np.floor(file_size / self.segment_size)
         segments = [self.segment_size for _ in range(full_segments_number)]
         segments.append(file_size - full_segments_number * self.segment_size)
         user.segments = len(segments)
@@ -113,9 +101,9 @@ class QueueSystem:
     def gen_users(self):
         while True:
             yield self.env.timeout(np.random.exponential(self.avg_arrival_time))
-            user = self.User()
+            user = create_user(wages=(0.5, 0.3, 0.2))
             self.users.put(user)
-            self.env.process(self.user_process_segmented(user) if self.is_segmented else self.user_process(user))
+            self.env.process(self.IS_input.process(user))
 
     def run(self):
         self.env.process(self.gen_users())
@@ -156,8 +144,7 @@ def plot_queue_and_service_data(system: QueueSystem, end_time):
     fig.show()
 
 
-def calculate_statistics(system: QueueSystem, end_time):
-    # Filtrowanie tylko pełnych czasów oczekiwania i obsługi
+def calculate_statistics(system: Resource, end_time):
     queue_times = []
     service_times = []
     for user in system.users.queue:
@@ -173,35 +160,48 @@ def calculate_statistics(system: QueueSystem, end_time):
                 service_times.append(end_time - user.process_time[-1])
         else:
             queue_times.append(end_time - user.enter_time[-1])
-
-    # queue_times = sum([user.queue_time for user in system.users.queue], []) # flatten list
-    # service_times = sum([user.service_time for user in system.users.queue], []) # flatten list
     
     avg_waiting_time = np.mean(queue_times) if queue_times else 0
     avg_service_time = np.mean(service_times) if service_times else 0
-    print("\nPodejście segmentowe:" if system.is_segmented else "\nPodejście z jednokrotnym pobieraniem:")
+    print("Wyniki:")
     print(f"Średni czas oczekiwania w kolejce: {avg_waiting_time}")
     print(f"Średni czas obsługi użytkownika: {avg_service_time}")
 
+def calculate_statistics(system: Resource, end_time):
+    queue_times = []
+    service_times = []
+    for user in system.users.queue:
+        enter_time_len = len(user.enter_time)
+        for i in range(len(user.enter_time) - 1):
+            queue_times.append(user.process_time[i] - user.enter_time[i])
+            service_times.append(user.out_time[i] - user.process_time[i])
+        if enter_time_len == len(user.process_time):
+            queue_times.append(user.process_time[-1] - user.enter_time[-1])
+            if enter_time_len == len(user.out_time):
+                service_times.append(user.out_time[-1] - user.process_time[-1])
+            else:
+                service_times.append(end_time - user.process_time[-1])
+        else:
+            queue_times.append(end_time - user.enter_time[-1])
+    
+    avg_waiting_time = np.mean(queue_times) if queue_times else 0
+    avg_service_time = np.mean(service_times) if service_times else 0
+    print("Wyniki:")
+    print(f"Średni czas oczekiwania w kolejce: {avg_waiting_time}")
+    print(f"Średni czas obsługi użytkownika: {avg_service_time}")
 
 def main():
-    config = load_file('config.yaml')
+    config = load_file('config_net.yaml')
     
-    system_not_segmented = QueueSystem(is_segmented=False, config=config)
-    system_not_segmented.run()
-    QueueSystem.User.counter = 0
-    system_segmented = QueueSystem(is_segmented=True, config=config)
-    system_segmented.run()
+    net = Net(config=config)
+    net.run()
     
     # Wyświetl statystyki przed wykresem
-    end_time = config['time']
-    calculate_statistics(system_not_segmented, end_time=end_time)
-    plot_queue_and_service_data(system_not_segmented, end_time=end_time)
+    # end_time = config['time']
+    # calculate_statistics(net, end_time=end_time)
+    # plot_queue_and_service_data(net, end_time=end_time)
 
-    calculate_statistics(system_segmented, end_time=end_time)
-    plot_queue_and_service_data(system_segmented, end_time=end_time)
-
-    plt.show()
+    # plt.show()
 
 
 if __name__ == '__main__':
