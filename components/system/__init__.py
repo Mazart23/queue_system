@@ -12,6 +12,7 @@ class Resource(ABC):
         '''
         If number of servers is not specified then create infinite capacity
         '''
+        self.env = env
         self.resource = simpy.Resource(env, capacity=config['number_of_servers']) \
             if 'number_of_servers' in config \
             else simpy.Resource(env)

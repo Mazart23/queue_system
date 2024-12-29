@@ -1,7 +1,7 @@
-from . import System
+from . import Resource
 
 
-class IS_segmented(System):
+class IS_segmented(Resource):
     def __init__(self):
         super().__init__()
         self.segment_watchtime = self.config['segment_watchtime']
