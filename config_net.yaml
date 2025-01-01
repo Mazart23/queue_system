@@ -1,0 +1,45 @@
+  # IS -> Infinite Server: infinity number of channels by default
+  # FIFO -> First In First Out, number of channels spedified by param
+
+simulation:
+  time: 3600 # s
+
+user:
+  avg_arrival_time: 1 # s
+  standard:
+    mean_file_size: 200 # MB
+    mean_download_speed: 10 # MB/s
+    arrival_wage: 0.6 
+  premium:
+    mean_file_size: 200 # MB
+    mean_download_speed: 20 # MB/s
+    arrival_wage: 0.3
+  VIP:
+    mean_file_size: 200 # MB
+    mean_download_speed: 20 # MB/s
+    arrival_wage: 0.1
+
+IS_input:
+  # infinity number of channels by default
+  time: 0.1 # s
+
+IS_between_servers:
+  time: 0.01 # s
+
+IS_output:
+  time: 0.1 # s
+
+FIFO_sequential:
+  number_of_channels: 1
+  time: 0.05 # s
+
+FIFO:
+  number_of_channels: 10
+
+FIFO_segmented:
+  number_of_channels: 5
+  segment_size: 2 # MB
+
+IS_segmented:
+  segment_watchtime: 60 # s
+  earlier_download: 10 # s
