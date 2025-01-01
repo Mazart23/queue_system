@@ -201,6 +201,26 @@ def plot_queue_and_service_data(system, end_time):
         fig.tight_layout()
         fig.show()
 
+        hist_data = defaultdict(lambda: defaultdict(list))
+
+        for type in types:
+            hist_data['system'][type] = [tup[0] for tup in resource.times_in_system.queue if tup[1].type == type or type == 'all']
+            hist_data['queue'][type] = [tup[0] for tup in resource.times_in_queue.queue if tup[1].type == type or type == 'all']
+            hist_data['service'][type] = [tup[0] for tup in resource.times_in_service.queue if tup[1].type == type or type == 'all']
+        
+        for i, (time_type, time_dict) in enumerate(hist_data.items()):
+            fig, axs = plt.subplots(4, 1, figsize=(8, 6), sharex=True)
+            for j, (data_type, data_list) in enumerate(time_dict.items()):
+                axs[j].hist(data_list, bins=50, color='blue', alpha=0.7, label=f'{time_type} - {data_type}')
+                axs[j].set_xlabel('Time')
+                axs[j].set_ylabel('Number of users')
+                axs[j].set_title(f'Histogram of users in {resource_str} - time spended in {time_type} - type: {data_type}')
+                axs[j].legend()
+                axs[j].grid(True)
+        
+        fig.tight_layout()
+        fig.show()
+
 def calculate_statistics(system: Resource, end_time):
     service_times = defaultdict(list)
     service_times_with_segmented = defaultdict(list)
@@ -218,9 +238,11 @@ def calculate_statistics(system: Resource, end_time):
             service_times_with_segmented[user.type].append(end_time - user.enter_time[0])
         service_times[user.type].append(times)
 
+    types = ('standard', 'premium', 'VIP')
+
     avg_service_time = {}
     avg_service_time_with_segmented = {}
-    for type in ('standard', 'premium', 'VIP'):
+    for type in types:
         avg_service_time[type] = np.mean(service_times[type]) if service_times[type] else 0
         avg_service_time_with_segmented[type] = np.mean(service_times_with_segmented[type]) if service_times_with_segmented[type] else 0
     
@@ -232,6 +254,26 @@ def calculate_statistics(system: Resource, end_time):
     for key, val in avg_service_time.items():
         print(f"\t{key}: {val}")
     print('')
+
+    fig, axs = plt.subplots(4, 1, figsize=(8, 6), sharex=True)
+        
+    for i, type in enumerate(types):
+        axs[i].hist(service_times[type], bins=20, color='blue', alpha=0.7, label=f"Histogram - {type}")
+        axs[i].set_xlabel('Time')
+        axs[i].set_ylabel('Number of users')
+        axs[i].set_title(f'Histogram of users in net - {type}')
+        axs[i].legend()
+        axs[i].grid(True)
+    
+    axs[3].hist([item for lst in service_times.values() for item in lst], bins=20, color='blue', alpha=0.7, label=f"Histogram - all")
+    axs[3].set_xlabel('Number of users')
+    axs[3].set_ylabel('Frequency')
+    axs[3].set_title(f'Histogram of users in net - all')
+    axs[3].legend()
+    axs[3].grid(True)
+
+    fig.tight_layout()
+    fig.show()
 
 def main():
     config = load_file('config_net.yaml')
