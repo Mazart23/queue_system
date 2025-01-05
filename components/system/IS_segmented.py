@@ -15,7 +15,14 @@ class IS_segmented(Resource):
         def _process_logic():
             enter_time = self.env.now
             self.track_queue_length_and_service(enter_time, user)
-            time_to_wait = self.segment_watchtime - min(enter_time - self.users_time.get(user.id, enter_time), self.earlier_download)
+            time_in_net_service = enter_time - self.users_time.get(user.id, user.enter_time[-1])
+            if user.id not in self.users_time:
+                time_to_wait = self.segment_watchtime - self.earlier_download
+                user.track_wait_time(time_in_net_service)
+            else:
+                if time_in_net_service > self.earlier_download:
+                    user.track_wait_time(time_in_net_service - self.earlier_download)
+                time_to_wait = self.segment_watchtime - min(time_in_net_service, self.earlier_download)
             
             with self.resource.request() as request:
                 yield request

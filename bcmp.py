@@ -107,7 +107,11 @@ class Net:
             yield self.FIFO_segmented.process(user, download_time)
             yield self.IS_output.process(user)
             user.out(self.env.now)
-
+            time_in_net_service = self.env.now - self.IS_segmented.users_time.get(user.id, user.enter_time[-1])
+            if user.id not in self.users_time:
+                user.track_wait_time(time_in_net_service)
+            elif time_in_net_service > self.IS_segmented.earlier_download:
+                user.track_wait_time(time_in_net_service - self.IS_segmented.earlier_download)
         else:
             user.enter(self.env.now)
             yield self.IS_input.process(user)
@@ -224,6 +228,7 @@ def plot_queue_and_service_data(system, end_time):
 def calculate_statistics(system: Resource, end_time):
     service_times = defaultdict(list)
     service_times_with_segmented = defaultdict(list)
+    wait_times_vip = []
 
     for user in system.users.queue:
         enter_time_len = len(user.enter_time)
@@ -237,14 +242,21 @@ def calculate_statistics(system: Resource, end_time):
             times += end_time - user.enter_time[-1]
             service_times_with_segmented[user.type].append(end_time - user.enter_time[0])
         service_times[user.type].append(times)
+        if user.type == 'VIP':
+            wait_times_vip.append(sum(user.wait_time))
 
     types = ('standard', 'premium', 'VIP')
 
     avg_service_time = {}
     avg_service_time_with_segmented = {}
+    avg_wait_time = {}
     for type in types:
         avg_service_time[type] = np.mean(service_times[type]) if service_times[type] else 0
         avg_service_time_with_segmented[type] = np.mean(service_times_with_segmented[type]) if service_times_with_segmented[type] else 0
+        if type == 'VIP':
+            avg_wait_time[type] = np.mean(wait_times_vip) if service_times[type] else 0
+        else:
+            avg_wait_time[type] = np.mean(service_times[type]) if service_times[type] else 0
     
     print("Wyniki:\n")
     print(f"Średni czas w systemie:")
@@ -252,6 +264,9 @@ def calculate_statistics(system: Resource, end_time):
         print(f"\t{key}: {val}")
     print(f"Średni czas w systemie (nie uwzględniając czasu spędzonego w IS_segmented):")
     for key, val in avg_service_time.items():
+        print(f"\t{key}: {val}")
+    print(f"Średni czas oczekiwania na pobieranie:")
+    for key, val in avg_wait_time.items():
         print(f"\t{key}: {val}")
     print('')
 
